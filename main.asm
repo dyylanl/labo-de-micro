@@ -10,7 +10,7 @@
 .equ nnnn = timer_freq / 10 ; /10 equals .1 sec
 .equ xxxx1 = 65536 - nnnn
 
-.equ VALUE = 0
+.equ VALUE = 5000
 .include "m328Pdef.inc"
 .include "usart.inc"
 
