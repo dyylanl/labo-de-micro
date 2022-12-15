@@ -51,13 +51,41 @@ onReset:
 main:
 	rcall configuracion_de_puertos
 	chequeo_sensor:
-		clr r22
+		clr r22		; usado para el sonido
+		clr r23		; usado para el silencio
 		sbis SENSOR_VALOR, SENSOR_PIN	; si ruido = 0 -> vuelvo a chequear | si ruido = 1 -> voy a ver cuanto dura el pulso
-		rjmp chequeo_sensor				; por ahora solo para debug (si hay silencio no hago nada)
+		rcall timer_silencio
+		;rjmp chequeo_sensor				; por ahora solo para debug (si hay silencio no hago nada)
 
 		rcall timer_sonido				; se detecto ruido
 		rjmp chequeo_sensor
 
+
+timer_silencio:
+	rcall init_timer
+	loop_silencio:
+		sbic SENSOR_VALOR, SENSOR_PIN	 ; si ruido = 1 -> voy a ver cuanto duro el silencio | si ruido = 0 voy a incrementar el tiempo del silencio
+		rjmp ruido
+
+		; si viene para aca es porque sigue habiendo silencio
+		in r20, TIFR1					; cargo en r20 los flags del timer
+		sbrs r20, TOV1					; chequeo el flag de overflow
+		rjmp loop_silencio				; no dio overflow sigo chequeando los flags y el sensor
+
+		; si sigue por aca es porque el timer dio overflow
+		inc r23
+		ldi r20, (1<<TOV1)				; Limpio el flag de overflow
+		out TIFR1, r20
+		rjmp timer_silencio
+
+		; si se ejecuta esta parte es porque dejo de haber silencio y se detecto ruido
+		ruido:
+			cpi r23, 80
+			brlo decodificar_letra
+			call espacio
+			ret
+			decodificar_letra:
+				ret
 
 timer_sonido:
 	rcall init_timer
@@ -86,6 +114,13 @@ timer_sonido:
 				ldi r16, '.'
 				call usart_tx
 				ret
+
+
+espacio:
+	ldi r16, ' '
+	call usart_tx
+	ret
+
 
 raya:
 	ldi r16, '-'
