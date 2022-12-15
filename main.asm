@@ -54,16 +54,16 @@ main:
 		clr r22		; usado para el sonido
 		clr r23		; usado para el silencio
 		sbis SENSOR_VALOR, SENSOR_PIN	; si ruido = 0 -> vuelvo a chequear | si ruido = 1 -> voy a ver cuanto dura el pulso
-		rcall timer_silencio
-		;rjmp chequeo_sensor				; por ahora solo para debug (si hay silencio no hago nada)
+		rjmp chequeo_sensor				; si hay silencio no hago nada
 
 		rcall timer_sonido				; se detecto ruido
+		rcall timer_silencio			; se detecto silencio
 		rjmp chequeo_sensor
 
 
 timer_silencio:
 	rcall init_timer
-	loop_silencio:
+	loop_silencio:						 ; si vine aca es pq habia ruido y se detecto silencio
 		sbic SENSOR_VALOR, SENSOR_PIN	 ; si ruido = 1 -> voy a ver cuanto duro el silencio | si ruido = 0 voy a incrementar el tiempo del silencio
 		rjmp ruido
 
@@ -80,7 +80,7 @@ timer_silencio:
 
 		; si se ejecuta esta parte es porque dejo de haber silencio y se detecto ruido
 		ruido:
-			cpi r23, 80
+			cpi r23, 50
 			brlo decodificar_letra
 			call espacio
 			ret
@@ -89,7 +89,7 @@ timer_silencio:
 
 timer_sonido:
 	rcall init_timer
-	loop_sonido:
+	loop_sonido:						; si vine aca es pq habia silencio y se detecto sonido
 		sbis SENSOR_VALOR, SENSOR_PIN	; si ruido = 0 -> voy a ver cuanto duro el ruido | si ruido = 1 voy a incrementar el tiempo del ruido
 		rjmp silencio
 		
