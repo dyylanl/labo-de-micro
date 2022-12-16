@@ -25,6 +25,10 @@
 .equ SENSOR_PIN = 2
 ; ********* SENSOR 1 *********
 
+.def contador = r21
+.def letra_reg = r22
+.dseg
+letra_ram: .byte 1
 
 .cseg
 .org 0x0000
@@ -50,9 +54,12 @@ onReset:
 
 main:
 	rcall configuracion_de_puertos
+	LDI XL, LOW(letra_ram)
+	LDI XH, HIGH(letra_ram)		; Puntero X a una posicion de memoria reservada en ram
 	chequeo_sensor:
 		clr r22		; usado para el sonido
 		clr r23		; usado para el silencio
+		CLR contador
 		sbis SENSOR_VALOR, SENSOR_PIN	; si ruido = 0 -> vuelvo a chequear | si ruido = 1 -> voy a ver cuanto dura el pulso
 		rjmp chequeo_sensor				; si hay silencio no hago nada
 
@@ -110,21 +117,84 @@ timer_sonido:
 			brlo punto
 			call raya
 			ret
+			; Agarro la posicion de memoria a la que apunta X, la shifteo y la vuelvo a guardar
 			punto:
-				ldi r16, '.'
-				call usart_tx
+				INC contador
+				ld letra_reg, X		; Guardo *X en letra_reg
+				LSL letra_reg		; Preparo el espacio para la siguiente '.' o '-'
+				ST X, letra_reg		
 				ret
 
 
+; Se termino de detectar un caracter y hay que decodificarlo y enviarlo por serial
 espacio:
-	ldi r16, ' '
-	call usart_tx
-	ret
+
+	; Chequeo la longitud del caracter recibido
+	CPI contador, 1
+	BREQ caracter_en_tabla1
+	
+	CPI contador, 2
+	BREQ caracter_en_tabla2
+
+	CPI contador, 3
+	BREQ caracter_en_tabla3
+
+	CPI contador, 4
+	BREQ caracter_en_tabla4
+
+	CPI contador, 5
+	BREQ caracter_en_tabla5
+
+	rjmp chequeo_sensor
+
+; se detecto un caracter de tamanio 1
+caracter_en_tabla1:
+	LDI ZH, HIGH(tabla_conversion_1 << 1)
+	LDI ZL, LOW(tabla_conversion_1 << 1)
+	rjmp get_caracter_de_tabla
 
 
+caracter_en_tabla2:
+	LDI ZH, HIGH(tabla_conversion_2 << 1)
+	LDI ZL, LOW(tabla_conversion_2 << 1)
+	rjmp get_caracter_de_tabla
+
+caracter_en_tabla3:
+	LDI ZH, HIGH(tabla_conversion_3 << 1)
+	LDI ZL, LOW(tabla_conversion_3 << 1)
+	rjmp get_caracter_de_tabla
+
+caracter_en_tabla4:
+	LDI ZH, HIGH(tabla_conversion_4 << 1)
+	LDI ZL, LOW(tabla_conversion_4 << 1)
+	rjmp get_caracter_de_tabla
+
+caracter_en_tabla5:
+	LDI ZH, HIGH(tabla_conversion_5 << 1)
+	LDI ZL, LOW(tabla_conversion_5 << 1)
+	rjmp get_caracter_de_tabla
+
+
+get_caracter_de_tabla:
+	;sabemos que el tamanio esta en contador y que la tabla esta en Z
+	ldi r25, 0
+	ADD ZL, letra_reg		; Movemos el puntero de la tabla de caracteres en offset correspondiente (letra_Reg tiene el offset)
+	ADC ZH, r25				; Z = 0000-LETRA
+	LPM letra_reg, Z		; letra = ZL
+
+	MOV r16, letra_reg
+	rcall usart_tx			; Transmito el caracter decodificado
+
+	CLR contador
+	CLR letra_reg			; Limpio los registros auxiliares
+
+	rjmp chequeo_sensor
 raya:
-	ldi r16, '-'
-	call usart_tx
+	INC contador
+	LD letra_reg, X
+	LSL letra_reg
+	ORI letra_reg, 1
+	ST X, letra_reg
 	ret
 
 init_timer:
@@ -157,3 +227,18 @@ configuracion_de_puertos:
 	out SENSOR_VALOR, r16		    	; Valor inicial de la entrada del SENSOR
 
 	ret
+
+tabla_conversion_1:
+	.db		'E','T'
+
+tabla_conversion_2:
+	.db		'I', 'A', 'N', 'M'
+	;		00	 01	   10  11
+tabla_conversion_3:
+	.db		'S', 'U', 'R', 'W', 'D', 'K', 'G', 'O'
+	;       000  001 010
+tabla_conversion_4:
+	.db		'H', 'V', 'F', '*', 'L', '*', 'P', 'J', 'B', 'X', 'C', 'Y', 'Z', 'Q' 
+	;	   0000 0001
+tabla_conversion_5:
+	.db		'5', '4', '*', '3', '*', '*', '*', '2', '*', '*', '*', '*', '*', '*', '*', '1', '6', '*', '*', '*', '*', '*', '*', '*', '7', '*', '*', '*', '8', '*', '9', '0'

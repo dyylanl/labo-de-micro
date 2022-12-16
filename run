@@ -1,4 +1,4 @@
 #!/bin/bash
-avra main.asm
-rm main.cof main.obj main.eep.hex
-avrdude -C/etc/avrdude.conf -v -patmega328p -carduino -P/dev/ttyUSB0 -b115200 -D -Uflash:w:main.hex
+avra tp_andando.asm
+rm tp_andando.cof tp_andando.obj tp_andando.eep.hex
+avrdude -C/etc/avrdude.conf -v -patmega328p -carduino -P/dev/ttyUSB0 -b115200 -D -Uflash:w:tp_andando.hex

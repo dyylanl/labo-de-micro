@@ -1,3 +1,4 @@
+
  ; How to use this USART library:
 ; 1) Define baudrate on the main file, for example:
 ; .equ USART_BAUDRATE = 9600
